@@ -78,7 +78,7 @@ public class PileRPL {
 			boolean sorting = true;
 			while(sorting) {
 				sorting = false;
-				for(int i=0; i<this.pile.length-2; i++) {
+				for(int i=0; i<this.currentPos-1; i++) {
 					if(this.pile[i].getValue() > this.pile[i+1].getValue()) {
 						ObjEmpile tmp = this.pile[i];
 						this.pile[i] = this.pile[i+1];
@@ -92,8 +92,10 @@ public class PileRPL {
 
 		public String toString() {
 				String result = "";
+				result += "  +-------------+\n";
 				for(int i=0; i<this.currentPos; i++) { 
-						result += this.pile[i] + "\n";
+						result += String.format("%d !%12s !\n", i, this.pile[i]);
+						result += "  +-------------+\n";
 				}
 				return result;
 		}
