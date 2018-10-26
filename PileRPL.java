@@ -19,7 +19,7 @@ public class PileRPL {
 			}
 			ObjEmpile oe1 = this.pop();
 			ObjEmpile oe2 = this.pop();
-			ObjEmpile oe3 = oe1.add(oe2);
+			ObjEmpile oe3 = oe2.add(oe1);
 			this.push(oe3);
 		}
 
@@ -29,7 +29,7 @@ public class PileRPL {
 			}
 			ObjEmpile oe1 = this.pop();
 			ObjEmpile oe2 = this.pop();
-			ObjEmpile oe3 = oe1.less(oe2);
+			ObjEmpile oe3 = oe2.less(oe1);
 			this.push(oe3);
 		}
 
@@ -39,7 +39,7 @@ public class PileRPL {
 			}
 			ObjEmpile oe1 = this.pop();
 			ObjEmpile oe2 = this.pop();
-			ObjEmpile oe3 = oe1.time(oe2);
+			ObjEmpile oe3 = oe2.time(oe1);
 			this.push(oe3);
 		}
 
@@ -49,7 +49,7 @@ public class PileRPL {
 			}
 			ObjEmpile oe1 = this.pop();
 			ObjEmpile oe2 = this.pop();
-			ObjEmpile oe3 = oe1.sub(oe2);
+			ObjEmpile oe3 = oe2.sub(oe1);
 			this.push(oe3);
 		}
 
@@ -90,13 +90,24 @@ public class PileRPL {
 			//Arrays.sort(this.pile);
 		}
 
+		public void swap() throws EmptyStack, FullStack {
+			if(this.currentPos < 2) {
+				throw new EmptyStack("Not enougth value in the stack to swap.");
+			}
+			ObjEmpile oe1 = this.pop();
+			ObjEmpile oe2 = this.pop();
+			this.push(oe1);
+			this.push(oe2);
+		}
+
 		public String toString() {
 				String result = "";
-				result += "  +-------------+\n";
 				for(int i=0; i<this.currentPos; i++) { 
-						result += String.format("%d !%12s !\n", i, this.pile[i]);
-						result += "  +-------------+\n";
-				}
+						result += "     +-------------+\n";
+						result += String.format("%4d !%12s !\n", i, this.pile[i]);
+				}				
+				result += "     +-------------+\n";
+				result += "  ->\n";
 				return result;
 		}
 }
