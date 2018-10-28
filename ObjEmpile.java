@@ -1,5 +1,5 @@
 
-public class ObjEmpile implements Comparable<ObjEmpile> {
+public class ObjEmpile {
 	private double n;
 
 	public ObjEmpile(double n) {
@@ -22,21 +22,11 @@ public class ObjEmpile implements Comparable<ObjEmpile> {
 		return new ObjEmpile(this.n * oe.getValue());
 	}
 	
-	public ObjEmpile sub(ObjEmpile oe) {
+	public ObjEmpile div(ObjEmpile oe) {
 		return new ObjEmpile(this.n / oe.getValue());
 	}
 
-	@Override
-    public int compareTo(ObjEmpile obj) {
-		if(this.getValue() > obj.getValue())
-			return -1;
-		else if(this.getValue() < obj.getValue())
-			return 1;
-		else
-			return 0;
-	}
-
 	public String toString() {
-		return String.valueOf(this.getValue());
+		return String.format("%.4f", this.getValue());
 	}
 }

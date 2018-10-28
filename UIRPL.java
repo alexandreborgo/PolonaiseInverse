@@ -12,17 +12,12 @@ import java.net.Socket;
 
 public class UIRPL {
 	PileRPL pile = null;
+	int p_size;
 
 	boolean keep = false;
 	boolean menu = true;
 
-	boolean record = false;
 	boolean replay = false;
-	boolean network = false;
-	boolean overhttp = false;
-	
-	String savefile = ""; // name of the current save file to display "Session save in x file" at the end of the session
-	String choice = ""; // menu choice, also current state 
 
 	BufferedReader localInput; // System.in
 	PrintWriter localOutput; // System.out
@@ -34,21 +29,31 @@ public class UIRPL {
 	Socket socket;
 	ServerSocket server;
 
-	private void write(String message)  {
-		this.output.println(message);
-		this.output.flush();
+	public UIRPL(int p_size) {
+		this.p_size = p_size;
+		
+		this.localInput = new BufferedReader( new InputStreamReader( System.in ) ); 
+		this.localOutput = new PrintWriter( System.out ); 
+
+		this.input = null;
+		this.output = null;
+		this.outputFile = null;
+
+		this.socket = null;
+		this.server = null;
 	}
 
-	private void printhelp() {
-		this.output.println("Operations: add, less, time, sub.");
-		this.output.println("Show the pile: pile.");
-		this.output.println("Other: swap, sort.");
-		this.output.println("Other commands: drop.");
-		this.output.println("Go back to the menu: quit, exit.");
-		this.output.flush();
+	public UIRPL() {
+		this(20);
+	}
+
+	private void write(PrintWriter output, String message)  {
+		output.println(message);
+		output.flush();
 	}
 
 	private String execCommand(String command) {
+		String result = "";
 		try {
 			try {
 				double v = Double.parseDouble(command);
@@ -57,9 +62,11 @@ public class UIRPL {
 			} catch(NumberFormatException exception) {
 				switch(command) {
 					case "quit":
-						this.keep = false;	
+						this.keep = false;
+						return "";
 					case "exit":
 						this.keep = false;
+						return "";
 					case "add":
 						this.pile.add();
 						break;
@@ -69,8 +76,8 @@ public class UIRPL {
 					case "time":
 						this.pile.time();
 						break;
-					case "sub":
-						this.pile.sub();
+					case "div":
+						this.pile.div();
 						break;
 					case "drop":
 						this.pile.drop();
@@ -81,57 +88,65 @@ public class UIRPL {
 					case "swap":
 						this.pile.swap();
 						break;
-					case "help":
-						this.printhelp();
+					case "help":						
+						result = "Operations: add, less, time, div.\nOther: swap, sort, drop.\nGo back to the menu: quit, exit.\n\n";
 						break;
 					case "clear":
-						return "\033[H\033[2J";
+						result = "\033[H\033[2J\n\n";
+						break;
 					default:
-						return "Unknown command.";
+						result = "Unknown command, type help to list all available commands.\n\n";
+						break;
 				}
 			}
 
-		} catch(EmptyStack exception) { 
-			this.write(exception.toString());
+		} catch(EmptyStack exception) {
+			this.write(this.output, exception.toString());
 		} catch(FullStack exception) {
-			this.write(exception.toString());
+			this.write(this.output, exception.toString());
 		}
 
-		return this.pile.toString();
+		return result + this.pile.toString();
 	}
 
 	private void calcloop() throws IOException {
-		String line;
-		this.write("type help to list available commands");
+		
+		String line = "";
+
+		this.write(this.output, "type help to list available commands");
+		this.pile = new PileRPL(this.p_size);
+
+		this.keep = true;
 		while(this.keep) {
 			line = this.input.readLine();
 
 			/* line is null if calc over network and we lost the connection */
 			if(line == null) {
-				this.output = this.localOutput;
-				this.write("Connection lost.");
+				this.write(this.localOutput, "Connection lost.");
 				break;
 			}
 
-			if(this.record && this.outputFile != null) {
-				this.outputFile.println(line);
+			if(this.outputFile != null) {
+				this.write(this.outputFile, line);
 			}
 
 			if(this.replay) {
-				this.write(line);
+				this.write(this.output, line);
 			}
 
-			this.write(this.execCommand(line));
+			this.write(this.output, this.execCommand(line));
 		}
 	}
 
-	private void calcoverhttploop() throws IOException {		
+	private void calcoverhttploop() throws IOException {
 		String header = "";
 		String html = "";
 		String line = "";
 		String response = "";
 		this.server = new ServerSocket(8080);
+		this.pile = new PileRPL(this.p_size);
 
+		this.keep = true;
 		while(this.keep) {
 			this.socket = this.server.accept();
 	
@@ -156,8 +171,6 @@ public class UIRPL {
 				line = "FALSE";
 			}
 
-			System.out.println("RCV header :\n" + header);
-
 			if(!line.equals("FALSE")) {
 				html += "<pre>" + this.execCommand(line) + "</pre><br \\>";
 			}
@@ -165,7 +178,7 @@ public class UIRPL {
 				html += "<pre>" + this.pile.toString() + "</pre>";
 			}			
 			
-			html += "<form method='get' action='http://10.0.4.12:8080/'><input type='text' name='cmd' placeholder='command' autofocus /> <input type='submit' value='Submit'></form>";
+			html += "<form method='get' action='http://localhost:8080/'><input type='text' name='cmd' placeholder='command' autofocus /> <input type='submit' value='Submit'></form>";
 			
 			response += "HTTP/1.1 200 OK\n";
 			response += "Content-Type: text/html\n";
@@ -175,36 +188,15 @@ public class UIRPL {
 			response += html + "\n";
 			response += "\r\n";
 			
-			this.write(response);
+			this.write(this.output, response);
 		}
 	}
 
-	public PrintWriter savesession(BufferedReader input, PrintWriter output) {
-		PrintWriter outputFile = null;
+	public BufferedReader replaysession() throws SessionFile {
 		String line = "";
 		try {
-			this.write("Do you want to save this session in a file ? [y/n] ");
-
-			line = input.readLine();
-			if(line.equals("y")) {
-				this.write("Name of the file ? ");
-				line = input.readLine();
-				outputFile = new PrintWriter( new FileOutputStream(line) );
-			}
-		} catch(IOException exception) {
-			this.write(exception.toString());
-			this.write("Error while creating/opening " + line + ", this session will not be saved !");
-			return null;
-		}
-		this.savefile = line;
-		return outputFile;
-	}
-
-	public BufferedReader replaysession(BufferedReader input, PrintWriter output) throws SessionFile {
-		String line = "";
-		try {
-			this.write("In which file is saved the session to replay?");
-			line = input.readLine();
+			this.write(this.localOutput, "In which file is saved the session to replay?");
+			line = this.localInput.readLine();
 			return new BufferedReader( new InputStreamReader( new FileInputStream(line) ) );
 			
 		} catch(IOException exception) {
@@ -212,42 +204,44 @@ public class UIRPL {
 		}
 	}
 
-	public UIRPL() {
-		this.localInput = new BufferedReader( new InputStreamReader( System.in ) ); 
-		this.localOutput = new PrintWriter(System.out); 
+	public void savesession() {
+		String line = "";
+		try {
+			this.write(this.output, "Do you want to save this session in a file ? [y/n] ");
 
-		this.input = null;
-		this.output = null;
-
-		this.socket = null;
-		this.server = null;
-
-		this.outputFile = null;
+			line = this.input.readLine();
+			if(line.equals("y")) {
+				this.write(this.output, "Name of the file ? ");
+				line = input.readLine();
+				this.outputFile = new PrintWriter( new FileOutputStream(line) );
+			}
+		} catch(IOException exception) {
+			this.write(this.output, "Error while creating/opening " + line + ", this session will not be saved !");
+			this.outputFile = null;
+		}
 	}
 
 	public void menuloop() {
+		String choice = "";
 		while(this.menu) {
 			try {
-				System.out.println("Menu:");
-				System.out.println("1. Session.");
-				System.out.println("2. Replay.");
-				System.out.println("3. Network.");
-				System.out.println("4. Over HTTP.");
-				System.out.println("0. Exit");
-				System.out.flush();
+				this.write(this.localOutput, "Menu:");
+				this.write(this.localOutput, "1. Session.");
+				this.write(this.localOutput, "2. Replay.");
+				this.write(this.localOutput, "3. Network.");
+				this.write(this.localOutput, "4. Over HTTP.");
+				this.write(this.localOutput, "0. Exit");
 
-				this.choice = localInput.readLine();
+				choice = localInput.readLine();
 				
-				switch(this.choice) {
+				switch(choice) {
 					case "0":
 						// exit
-						this.output = localOutput;
-						this.write("bye");
+						this.write(this.localOutput, "bye");
 						this.menu = false;
-						this.keep = false;
 						break;
 					case "clear":
-						this.write("\033[H\033[2J");
+						this.write(this.localOutput, "\033[H\033[2J");
 						break;
 					case "1":
 						// from System.in
@@ -255,75 +249,55 @@ public class UIRPL {
 						// and file (if user chose to save the session)
 						this.input = localInput;
 						this.output = localOutput;
-						this.outputFile = this.savesession(this.input, this.output);
-						this.keep = true;
+						this.savesession();
+						this.calcloop();
 						break;
 					case "2":
 						// from file
 						// to System.out
-						try {
+						try  {
 							this.output = this.localOutput;
-							this.input = this.replaysession(this.localInput, this.localOutput);
-							this.keep = true;
+							this.input = this.replaysession();
 							this.replay = true;
+							this.calcloop();
 						} catch(SessionFile exception) {
-							this.write(exception.getMessage());
-							this.keep = false;
+							this.write(this.localOutput, exception.getMessage());
 						}
 						break;
 					case "3":
 						// from network
 						// to network
 						// and file (if user chose to save the session)
-						this.keep = true;
 						this.server = new ServerSocket(6371);
 						this.output = localOutput;
-						this.write("Waiting a connection on port 6371...");
+						this.write(this.output, "Waiting a connection on port 6371...");
 						this.socket = server.accept();
-						this.write("Someone is connected!");
-						this.input = new BufferedReader( new InputStreamReader( socket.getInputStream() ) );
+						this.write(this.output, "Someone is connected!");
 						this.output = new PrintWriter( socket.getOutputStream() );
-						this.outputFile = this.savesession(input, output);
+						this.input = new BufferedReader( new InputStreamReader( socket.getInputStream() ) );
+						this.savesession();
+						this.calcloop();
+						this.socket.close();
+						this.server.close();
 						break;
 					case "4":
-						this.overhttp = true;
-						this.keep = true;
-						this.network = true;
+						// from network
+						// to network
+						// in HTTP
 						this.output = localOutput;
-						this.write("Waiting for connections on port 8080...");
+						this.write(this.output, "Waiting for connection on port 8080...");
+						this.calcoverhttploop();
 						break;
 					default:
-						this.write("Unknown command");
+						this.write(this.localOutput, "Unknown command");
 						continue;
 				}
 
-				if(this.keep) {
-					this.pile = new PileRPL(100);
-					
-					if(this.overhttp) {
-						this.calcoverhttploop();
-						this.overhttp = false;
-					} 					
-					else {
-						this.calcloop();
-					}
-					
-					if(this.record) {
-						this.outputFile.close();
-						this.write("Session saved in the file: " + this.savefile);
-						this.outputFile = null;
-						this.savefile = "";
-						this.record = false;
-					}
-
-					if(this.network) {
-						socket.close();
-						server.close();
-						this.network = false;
-					}
-
-					this.replay = false;
-				}
+				this.output = localOutput;
+				this.input = localInput;
+				this.outputFile = null;
+				this.replay = false;
+				this.keep = false;
 
 			} catch(IOException exception) {
 				System.out.println("Error");
@@ -332,7 +306,15 @@ public class UIRPL {
 		}
 	}
 
-	public static void main(String[] args) throws IOException {
-		new UIRPL().menuloop();
+	public static void main(String[] args) {
+		try {
+			if(args.length > 0)
+				new UIRPL(Integer.parseInt(args[0])).menuloop();
+			else
+				new UIRPL().menuloop();
+		} catch(NumberFormatException exception) {
+			System.out.println("Argument isn't a number.");
+			System.exit(-1);
+		}		
 	}	
 }

@@ -25,7 +25,7 @@ public class PileRPL {
 
 		public void less() throws EmptyStack, FullStack {
 			if(this.currentPos < 2) {
-				throw new EmptyStack("Not enougth value in the stack to substract.");
+				throw new EmptyStack("Not enougth value in the stack to divstract.");
 			}
 			ObjEmpile oe1 = this.pop();
 			ObjEmpile oe2 = this.pop();
@@ -43,13 +43,13 @@ public class PileRPL {
 			this.push(oe3);
 		}
 
-		public void sub() throws EmptyStack, FullStack {
+		public void div() throws EmptyStack, FullStack {
 			if(this.currentPos < 2) {
 				throw new EmptyStack("Not enougth value in the stack to divide.");
 			}
 			ObjEmpile oe1 = this.pop();
 			ObjEmpile oe2 = this.pop();
-			ObjEmpile oe3 = oe2.sub(oe1);
+			ObjEmpile oe3 = oe2.div(oe1);
 			this.push(oe3);
 		}
 
@@ -87,7 +87,6 @@ public class PileRPL {
 					}
 				}
 			}
-			//Arrays.sort(this.pile);
 		}
 
 		public void swap() throws EmptyStack, FullStack {
