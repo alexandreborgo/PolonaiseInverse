@@ -15,7 +15,6 @@ public class UIRPL {
 	int p_size;
 
 	boolean keep = false;
-	boolean menu = true;
 
 	boolean replay = false;
 
@@ -126,10 +125,12 @@ public class UIRPL {
 				break;
 			}
 
+			/* if !null then we have a file to save in */
 			if(this.outputFile != null) {
 				this.write(this.outputFile, line);
 			}
 
+			/* print the command if this is a replay of a session */
 			if(this.replay) {
 				this.write(this.output, line);
 			}
@@ -223,7 +224,8 @@ public class UIRPL {
 
 	public void menuloop() {
 		String choice = "";
-		while(this.menu) {
+		boolean menuKeep = true;
+		while(menuKeep) {
 			try {
 				this.write(this.localOutput, "Menu:");
 				this.write(this.localOutput, "1. Session.");
@@ -238,7 +240,7 @@ public class UIRPL {
 					case "0":
 						// exit
 						this.write(this.localOutput, "bye");
-						this.menu = false;
+						menuKeep = false;
 						break;
 					case "clear":
 						this.write(this.localOutput, "\033[H\033[2J");
@@ -269,10 +271,9 @@ public class UIRPL {
 						// to network
 						// and file (if user chose to save the session)
 						this.server = new ServerSocket(6371);
-						this.output = localOutput;
-						this.write(this.output, "Waiting a connection on port 6371...");
+						this.write(this.localOutput, "Waiting a connection on port 6371...");
 						this.socket = server.accept();
-						this.write(this.output, "Someone is connected!");
+						this.write(this.localOutput, "Someone is connected!");
 						this.output = new PrintWriter( socket.getOutputStream() );
 						this.input = new BufferedReader( new InputStreamReader( socket.getInputStream() ) );
 						this.savesession();
@@ -284,8 +285,7 @@ public class UIRPL {
 						// from network
 						// to network
 						// in HTTP
-						this.output = localOutput;
-						this.write(this.output, "Waiting for connection on port 8080...");
+						this.write(this.localOutput, "Waiting for connection on port 8080...");
 						this.calcoverhttploop();
 						break;
 					default:
@@ -297,7 +297,6 @@ public class UIRPL {
 				this.input = localInput;
 				this.outputFile = null;
 				this.replay = false;
-				this.keep = false;
 
 			} catch(IOException exception) {
 				System.out.println("Error");
